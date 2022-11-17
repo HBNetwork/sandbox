@@ -28,9 +28,6 @@ class Cnpj(Identification):
 class IdentificationField(models.Field):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.name = kwargs.get("name")
-
         self.field_value = models.CharField(max_length=256)
         self.field_type = models.CharField(max_length=32, choices=IdentificationTypes.choices)
 
