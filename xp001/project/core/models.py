@@ -13,26 +13,31 @@ class BadCustomer(models.Model):
 
 
 class Identification(str):
-    pass
-
+    def from_type(type, value):
+        if (type == "BrCpf"):
+            return Cpf()
+        if (type == "BrCnpj"):
+            return Cnpj()
 
 class Cpf(Identification):
     pass
 
+class Cnpj(Identification):
+    pass
 
 class IdentificationField(models.Field):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.field_value = models.CharField(max_length=256)
         self.field_type = models.CharField(max_length=32, choices=IdentificationTypes.choices)
 
-        self.field_value_name = f"{self.name}_value"
-        self.field_type_name = f"{self.name}_type"
-
-    def contribute_to_class(self, cls, name, private_only=False):
+    def contribute_to_class(self, cls, name, private_only=True):
+        self.field_type_name = f"{name}_type"
+        self.field_value_name = f"{name}_value"
         cls.add_to_class(self.field_type_name, self.field_type)
         cls.add_to_class(self.field_value_name, self.field_value)
+        super().contribute_to_class(cls, name, private_only)
+
 
     def __set__(self, instance, value):
         if not isinstance(value, Identification):

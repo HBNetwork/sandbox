@@ -1,5 +1,5 @@
 import pytest
-from project.core.models import GoodCustomer, BadCustomer, IdentificationTypes, Cpf, Identification
+from project.core.models import GoodCustomer, BadCustomer, IdentificationTypes, Cpf, Identification, Cnpj
 
 
 @pytest.mark.django_db
@@ -22,7 +22,11 @@ class TestCustomerModel:
         assert type(c.identification) == Cpf
         assert c.identification == "11144477735"
 
-    # def test_factory(self):
-    #     ident = Identification.from_type("BrCpf", "11144477735")
-    #     assert type(ident) == Cpf
-    #     assert issubclass(Cpf, Identification)
+    def test_factory(self):
+        ident = Identification.from_type("BrCpf", "11144477735")
+        assert type(ident) == Cpf
+        assert issubclass(Cpf, Identification)
+
+        ident_cnpj = Identification.from_type("BrCnpj", "11144477735")
+        assert type(ident_cnpj) == Cnpj
+        assert issubclass(Cnpj, Identification)
