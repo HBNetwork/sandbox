@@ -57,6 +57,13 @@ class Identification(str):
         cls.registry.register(klass.name(), klass, **constraints)
 
     @classmethod
+    def unpack(cls, ident):
+        if not isinstance(ident, cls):
+            raise TypeError(f"{ident} is not a subtype of {cls}.")
+
+        return ident.kind, ident
+
+    @classmethod
     def choices(cls):
         return [(key, klass.name) for key, (klass, _) in cls.registry.items()]
 
@@ -113,8 +120,4 @@ class Customer(models.Model):
 
     @identification.setter
     def identification(self, ident):
-        if not isinstance(ident, Identification):
-            raise IdentTypeError(ident)
-
-        self.identification_kind = ident.kind
-        self.identification_value = ident
+        self.identification_kind, self.identification_value = Identification.unpack(ident)
