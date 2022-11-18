@@ -1,31 +1,9 @@
-from collections import defaultdict
-from collections.abc import MutableMapping
-
 from django.db import models
 
 
-class IdentException(Exception):
-    pass
-
-
-class IdentAlreadyRegistered(IdentException):
-    def __init__(self, klass):
-        super().__init__(f"Ident {klass!r} is already registered.")
-
-
-class IdentNotFound(IdentException):
-    def __init__(self, kind):
-        super().__init__(f"Ident of kind {kind!r} is not registered.")
-
-
-class IdentTypeError(IdentException):
-    def __init__(self, klass):
-        super().__init__(f"Object type {klass!r} not of a subclass of Identification.")
-
-
-class IdentInvalid(IdentException):
+class InvalidFormat(Exception):
     def __init__(self, value):
-        super().__init__(f"Identification value is invalid: {value}.")
+        super().__init__(f"Identification value has invalid format: {value}.")
 
 
 class ConstraintError(Exception):
@@ -68,15 +46,14 @@ class Identification(str):
 
     @classmethod
     def of_kind(cls, kind, value, **constraints):
-        if klass := cls.registry.get(kind, **constraints):
-            return klass(value)
-        else:
-            raise IdentNotFound(kind)
+        klass = cls.registry.get(kind, **constraints)
+        return klass(value)
 
     @classmethod
     def register(cls, klass, **constraints):
         if not issubclass(klass, cls):
-            raise IdentTypeError(klass)
+            raise TypeError(f"Class {klass} is not a subtype of {cls}.")
+
         cls.registry.register(klass.name(), klass, **constraints)
 
     @classmethod
@@ -84,7 +61,7 @@ class Identification(str):
         return [(key, klass.name) for key, (klass, _) in cls.registry.items()]
 
 
-class CPFInvalid(IdentInvalid):
+class CPFInvalid(InvalidFormat):
     pass
 
 
@@ -96,7 +73,7 @@ class Cpf(Identification):
         return super().__new__(cls, string)
 
     def __format__(self, spec):
-        if spec == ".":
+        if spec == "dot":
             return "{0}.{1}.{2}-{3}".format(self[:3], self[3:6], self[6:9], self[9:11])
         else:
             return self

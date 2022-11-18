@@ -1,7 +1,5 @@
 import pytest
-from project.core.models import Customer, Cpf, Identification, Cnpj
-
-from project.core.models import ConstraintError, Registry
+from project.core.models import Cnpj, ConstraintError, Cpf, Customer, Identification, Registry
 
 
 @pytest.mark.django_db
@@ -14,7 +12,7 @@ class TestCustomerModel:
         assert c.pk
         assert type(c.identification) == Cpf
         assert c.identification == "11144477735"
-        assert f"{c.identification:.}" == "111.444.777-35"
+        assert f"{c.identification:dot}" == "111.444.777-35"
 
     def test_factory(self):
         ident = Identification.of_kind("cpf", "11144477735")
@@ -22,6 +20,12 @@ class TestCustomerModel:
 
         ident = Identification.of_kind("cnpj", "01234567890123")
         assert isinstance(ident, Cnpj)
+
+        with pytest.raises(TypeError):
+            Identification.register("number", int)
+
+        with pytest.raises(KeyError):
+            Identification.of_kind("unknown", "somevalue")
 
     def test_registry(self):
         r = Registry()
