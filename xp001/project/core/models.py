@@ -36,13 +36,10 @@ class Registry(dict):
 class Identification(str):
     registry = Registry()
 
-    @property
-    def kind(self):
-        return type(self).__name__.lower()
-
-    @classmethod
-    def name(cls):
-        return cls.__name__.lower()
+    @staticmethod
+    def key_for(obj):
+        klass = type(obj) if isinstance(obj, Identification) else obj
+        return klass.__name__.lower()
 
     @classmethod
     def of_kind(cls, kind, value, **constraints):
@@ -54,18 +51,18 @@ class Identification(str):
         if not issubclass(klass, cls):
             raise TypeError(f"Class {klass} is not a subtype of {cls}.")
 
-        cls.registry.register(klass.name(), klass, **constraints)
+        cls.registry.register(cls.key_for(klass), klass, **constraints)
 
     @classmethod
     def unpack(cls, ident):
         if not isinstance(ident, cls):
             raise TypeError(f"{ident} is not a subtype of {cls}.")
 
-        return ident.kind, ident
+        return cls.key_for(ident), ident
 
     @classmethod
     def choices(cls):
-        return [(key, klass.name) for key, (klass, _) in cls.registry.items()]
+        return [(key, klass.__name__) for key, (klass, _) in cls.registry.items()]
 
 
 class CPFInvalid(InvalidFormat):

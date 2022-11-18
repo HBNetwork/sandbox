@@ -27,6 +27,8 @@ class TestCustomerModel:
         with pytest.raises(KeyError):
             Identification.of_kind("unknown", "somevalue")
 
+        assert Identification.choices() == [("cpf", "Cpf"), ("cnpj", "Cnpj")]
+
     def test_registry(self):
         r = Registry()
         r.register("cpf", Cpf, country="BR", person="individual")
