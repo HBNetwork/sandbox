@@ -1,3 +1,6 @@
+from collections import defaultdict
+from collections.abc import MutableMapping
+
 from django.db import models
 
 
@@ -25,43 +28,60 @@ class IdentInvalid(IdentException):
         super().__init__(f"Identification value is invalid: {value}.")
 
 
+class ConstraintError(Exception):
+    pass
+
+
+class Registry(dict):
+    def get(self, key, **constraints):
+        constraints = frozenset(constraints.items())
+        klass, registered_constraints = self[key]
+
+        if not constraints.issubset(registered_constraints):
+            raise ConstraintError(f"Key {key} is mapped to {klass} but the constraints {constraints} does not match.")
+
+        return klass
+
+    def filter(self, **constraints):
+        constraints = frozenset(constraints.items())
+
+        return {klass for klass, registered_constraints in self.values()
+                if constraints.issubset(registered_constraints)}
+
+    def register(self, key, klass, **constraints):
+        if key in self:
+            raise KeyError(f"Key {key} already exists.")
+
+        self[key] = klass, frozenset(constraints.items())
+
+
 class Identification(str):
-    kinds = {}
+    registry = Registry()
 
     @property
     def kind(self):
         return type(self).__name__.lower()
-
-    @staticmethod
-    def as_key(kind, country=None):
-        return kind if country is None else (kind, country)
 
     @classmethod
     def name(cls):
         return cls.__name__.lower()
 
     @classmethod
-    def of_kind(cls, kind, value, country=None):
-        key = cls.as_key(kind, country)
-
-        if klass := cls.kinds.get(key):
+    def of_kind(cls, kind, value, **constraints):
+        if klass := cls.registry.get(kind, **constraints):
             return klass(value)
         else:
             raise IdentNotFound(kind)
 
     @classmethod
-    def register(cls, klass, country=None):
+    def register(cls, klass, **constraints):
         if not issubclass(klass, cls):
             raise IdentTypeError(klass)
-
-        if klass in cls.kinds:
-            raise IdentAlreadyRegistered(klass)
-
-        cls.kinds[cls.as_key(klass.name(), country)] = klass
+        cls.registry.register(klass.name(), klass, **constraints)
 
     @classmethod
     def choices(cls):
-        return list(cls.kinds.items())
+        return [(key, klass.name) for key, (klass, _) in cls.registry.items()]
 
 
 class CPFInvalid(IdentInvalid):
@@ -102,8 +122,8 @@ class Cnpj(Identification):
     pass
 
 
-Identification.register(Cpf)
-Identification.register(Cnpj)
+Identification.register(Cpf, country="BR", person="individual")
+Identification.register(Cnpj, country="BR", person="business")
 
 
 class Customer(models.Model):
