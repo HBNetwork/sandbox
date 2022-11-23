@@ -1,5 +1,5 @@
 import pytest
-from project.core.models import Cnpj, ConstraintError, Cpf, Customer, Identification, Registry
+from project.core.models import Cnpj, ConstraintError, Cpf, Customer, Identification, IdentificationFactory, Registry
 
 
 @pytest.mark.django_db
@@ -13,27 +13,30 @@ class TestCustomerModel:
         assert type(c.identification) == Cpf
         assert c.identification == "11144477735"
         assert f"{c.identification:dot}" == "111.444.777-35"
+        assert f"{c.identification:mask}" == "111.***.***-35"
 
     def test_factory(self):
-        ident = Identification.of_kind("cpf", "11144477735")
+        ident = IdentificationFactory.of_kind("cpf", "11144477735")
         assert isinstance(ident, Cpf)
 
-        ident = Identification.of_kind("cnpj", "01234567890123")
+        ident = IdentificationFactory.of_kind("cnpj", "01234567890123")
         assert isinstance(ident, Cnpj)
 
-        with pytest.raises(TypeError):
-            Identification.register("number", int)
-
         with pytest.raises(KeyError):
-            Identification.of_kind("unknown", "somevalue")
+            IdentificationFactory.of_kind("unknown", "somevalue")
 
-        assert Identification.choices() == [("cpf", "Cpf"), ("cnpj", "Cnpj")]
+        with pytest.raises(TypeError):
+            IdentificationFactory.register("number", int)
+
+        assert IdentificationFactory.choices() == [("cpf", "Cpf"), ("cnpj", "Cnpj")]
 
     def test_registry(self):
         r = Registry()
         r.register("cpf", Cpf, country="BR", person="individual")
         r.register("cnpj", Cnpj, country="BR", person="business")
 
+        assert r["cpf"] == (Cpf, {("country", "BR"), ("person", "individual")})
+        assert r["cnpj"] == (Cnpj, {("country", "BR"), ("person", "business")})
         assert r.get("cpf") is Cpf
         assert r.get("cnpj") is Cnpj
         assert r.filter(country="BR") == {Cpf, Cnpj}
@@ -49,3 +52,13 @@ class TestCustomerModel:
 
         with pytest.raises(ConstraintError):
             r.get("cpf", country="US")
+
+    def test_rationale(self):
+        # self["cpf"] = (Cpf, {("country", "BR"), ("person", "individual")})
+        r = {
+            "cpf": (Cpf, {("country", "BR"), ("person", "individual")}),
+            "cnpj": (Cnpj, {("country", "BR"), ("person", "business")}),
+        }
+
+        klass, registered_constraints = r["cpf"]
+        assert {("country", "BR")}.issubset(registered_constraints)

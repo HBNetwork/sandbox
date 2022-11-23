@@ -1,4 +1,5 @@
 from django.db import models
+from rest_framework import serializers
 
 
 class InvalidFormat(Exception):
@@ -34,6 +35,10 @@ class Registry(dict):
 
 
 class Identification(str):
+    pass
+
+
+class IdentificationFactory:
     registry = Registry()
 
     @staticmethod
@@ -48,15 +53,15 @@ class Identification(str):
 
     @classmethod
     def register(cls, klass, **constraints):
-        if not issubclass(klass, cls):
-            raise TypeError(f"Class {klass} is not a subtype of {cls}.")
+        if not issubclass(klass, Identification):
+            raise TypeError(f"Class {klass} is not a subtype of {Identification}.")
 
         cls.registry.register(cls.key_for(klass), klass, **constraints)
 
     @classmethod
     def unpack(cls, ident):
-        if not isinstance(ident, cls):
-            raise TypeError(f"{ident} is not a subtype of {cls}.")
+        if not isinstance(ident, Identification):
+            raise TypeError(f"{ident} is not a subtype of {Identification}.")
 
         return cls.key_for(ident), ident
 
@@ -79,6 +84,8 @@ class Cpf(Identification):
     def __format__(self, spec):
         if spec == "dot":
             return "{0}.{1}.{2}-{3}".format(self[:3], self[3:6], self[6:9], self[9:11])
+        elif spec == "mask":
+            return "{0}.***.***-{1}".format(self[:3], self[9:11])
         else:
             return self
 
@@ -103,18 +110,27 @@ class Cnpj(Identification):
     pass
 
 
-Identification.register(Cpf, country="BR", person="individual")
-Identification.register(Cnpj, country="BR", person="business")
+IdentificationFactory.register(Cpf, country="BR", person="individual")
+IdentificationFactory.register(Cnpj, country="BR", person="business")
 
 
 class Customer(models.Model):
     identification_value = models.CharField(max_length=256)
-    identification_kind = models.CharField(choices=Identification.choices(), max_length=32)
+    identification_kind = models.CharField(choices=IdentificationFactory.choices(), max_length=32)
 
     @property
     def identification(self):
-        return Identification.of_kind(self.identification_kind, self.identification_value)
+        return IdentificationFactory.of_kind(self.identification_kind, self.identification_value)
 
     @identification.setter
     def identification(self, ident):
-        self.identification_kind, self.identification_value = Identification.unpack(ident)
+        self.identification_kind, self.identification_value = IdentificationFactory.unpack(ident)
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    identification = serializers.SerializerMethodField(method_name="identification_method")
+
+    def identification_method(self, value):
+        ...
+        # of_kind
+        # unpack
